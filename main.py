@@ -6,6 +6,8 @@ import atexit
 import psutil
 from datetime import datetime
 import os
+import asyncio
+import main
 
 # Botのインテントを設定
 intents = discord.Intents.default()
@@ -92,18 +94,6 @@ async def on_ready():
     await main.change_presence(activity=discord.Game(name=f"接続数: {current_channel_count}"))
     
     update_status.start()
-
-@main.tree.command(name='yomikomi', description='bot.pyを再読み込みします。')
-async def reload_bot(interaction: discord.Interaction):
-    await interaction.response.send_message('ボットを再読み込み中です...', ephemeral=True)
-
-    try:
-        import main  # メインボットスクリプトをインポート
-        importlib.reload(main)  # モジュールをリロード
-        await interaction.channel.send('ボットの再読み込みが完了しました。')
-    except Exception as e:
-        await interaction.channel.send(f'再読み込み中にエラーが発生しました: {e}')
-
 
 @main.tree.command(name='status', description='サーバーのCPUおよびメモリ使用率を表示します。')
 async def server_status(interaction: discord.Interaction):
@@ -217,8 +207,8 @@ async def on_message(message):
 
         await message.add_reaction('✅')
 
-# プログラム終了時にデータベースを閉じる
-atexit.register(lambda: main.loop.run_until_complete(close_db()))
+def close_db_sync():
+    asyncio.run(close_db())  # 非同期関数を同期的に実行
 
 # Botのトークンをここに入れてください
 main.run(os.environ['DISCORD_BOT_TOKEN'])
