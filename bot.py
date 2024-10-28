@@ -6,6 +6,7 @@ import atexit
 import psutil
 from datetime import datetime
 import os
+import bot
 
 # Botのインテントを設定
 intents = discord.Intents.default()
@@ -95,13 +96,10 @@ async def on_ready():
 
 @bot.tree.command(name='yomikomi', description='bot.pyを再読み込みします。')
 async def reload_bot(interaction: discord.Interaction):
-    global bot
     await interaction.response.send_message('ボットを再読み込み中です...', ephemeral=True)
-    
+
     try:
-        # 現在のモジュールを再読み込み
-        importlib.reload(bot)
-        
+        importlib.reload(bot)  # bot モジュールを再読み込み
         await interaction.channel.send('ボットの再読み込みが完了しました。')
     except Exception as e:
         await interaction.channel.send(f'再読み込み中にエラーが発生しました: {e}')
