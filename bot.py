@@ -5,6 +5,7 @@ import aiosqlite
 import atexit
 import psutil
 from datetime import datetime
+import os
 
 # Botのインテントを設定
 intents = discord.Intents.default()
