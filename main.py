@@ -6,7 +6,6 @@ import atexit
 import psutil
 from datetime import datetime
 import os
-import main
 
 # Botのインテントを設定
 intents = discord.Intents.default()
@@ -60,7 +59,7 @@ async def update_status():
 
         embed = discord.Embed(
             title='BOTの状態',
-            description='接続中...' if is_running else '停止中',
+            description='正常稼働中' if is_running else '停止中',
             color=0x00FF00 if is_running else 0xFF0000
         )
         embed.add_field(name='接続数', value=current_channel_count, inline=False)
@@ -94,7 +93,7 @@ async def on_ready():
     
     update_status.start()
 
-@bot.tree.command(name='yomikomi', description='bot.pyを再読み込みします。')
+@main.tree.command(name='yomikomi', description='bot.pyを再読み込みします。')
 async def reload_bot(interaction: discord.Interaction):
     await interaction.response.send_message('ボットを再読み込み中です...', ephemeral=True)
 
