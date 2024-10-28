@@ -6,7 +6,7 @@ import atexit
 import psutil
 from datetime import datetime
 import os
-import bot
+import main
 
 # Botのインテントを設定
 intents = discord.Intents.default()
@@ -14,7 +14,7 @@ intents.messages = True
 intents.reactions = True
 intents.message_content = True
 
-bot = commands.Bot(command_prefix='!', intents=intents)
+main = commands.Bot(command_prefix='!', intents=intents)
 
 # SQLiteデータベースの初期化
 db_connection = None
@@ -45,14 +45,14 @@ async def get_registered_channels():
         return [row[0] for row in await cursor.fetchall()]
 
 # 定期的にBOTの状態を更新するためのタスク
-status_channel_id = 1295379418922881120
+status_channel_id = 1300468412257927189
 status_message = None
 is_running = True  # BOTが稼働中かどうかのフラグ
 
 @tasks.loop(seconds=30)
 async def update_status():
     global status_message, is_running
-    channel = bot.get_channel(status_channel_id)
+    channel = main.get_channel(status_channel_id)
 
     if channel is not None:
         registered_channels = await get_registered_channels()
@@ -71,10 +71,10 @@ async def update_status():
         else:
             await status_message.edit(embed=embed)
 
-@bot.event
+@main.event
 async def on_ready():
     await init_db()
-    await bot.tree.sync()
+    await main.tree.sync()
 
     registered_channels = await get_registered_channels()
     current_channel_count = len(registered_channels)
@@ -86,11 +86,11 @@ async def on_ready():
     )
     
     for channel_id in registered_channels:
-        target_channel = bot.get_channel(channel_id)
+        target_channel = main.get_channel(channel_id)
         if target_channel and target_channel.permissions_for(target_channel.guild.me).send_messages:
             await target_channel.send(embed=embed)
 
-    await bot.change_presence(activity=discord.Game(name=f"接続数: {current_channel_count}"))
+    await main.change_presence(activity=discord.Game(name=f"接続数: {current_channel_count}"))
     
     update_status.start()
 
@@ -99,12 +99,14 @@ async def reload_bot(interaction: discord.Interaction):
     await interaction.response.send_message('ボットを再読み込み中です...', ephemeral=True)
 
     try:
-        importlib.reload(bot)  # bot モジュールを再読み込み
+        import main  # メインボットスクリプトをインポート
+        importlib.reload(main)  # モジュールをリロード
         await interaction.channel.send('ボットの再読み込みが完了しました。')
     except Exception as e:
         await interaction.channel.send(f'再読み込み中にエラーが発生しました: {e}')
 
-@bot.tree.command(name='status', description='サーバーのCPUおよびメモリ使用率を表示します。')
+
+@main.tree.command(name='status', description='サーバーのCPUおよびメモリ使用率を表示します。')
 async def server_status(interaction: discord.Interaction):
     cpu_usage = psutil.cpu_percent(interval=1)
     memory = psutil.virtual_memory()
@@ -117,7 +119,7 @@ async def server_status(interaction: discord.Interaction):
 
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
-@bot.tree.command(name='list', description='現在の登録チャンネルのリストと接続数を表示します。')
+@main.tree.command(name='list', description='現在の登録チャンネルのリストと接続数を表示します。')
 async def list_global_chat_channels(interaction: discord.Interaction):
     registered_channels = await get_registered_channels()
     current_channel_count = len(registered_channels)
@@ -131,7 +133,7 @@ async def list_global_chat_channels(interaction: discord.Interaction):
     if current_channel_count > 0:
         server_info = []
         for channel_id in registered_channels:
-            channel = bot.get_channel(channel_id)
+            channel = main.get_channel(channel_id)
             if channel and channel.guild:
                 server_info.append(f"{channel.guild.name} - メンバー数: {channel.guild.member_count}")
 
@@ -141,7 +143,7 @@ async def list_global_chat_channels(interaction: discord.Interaction):
 
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
-@bot.tree.command(name='start', description='グローバルチャットを開始します。')
+@main.tree.command(name='start', description='グローバルチャットを開始します。')
 async def start_global_chat(interaction: discord.Interaction):
     channel = interaction.channel
     await register_channel(channel.id)
@@ -154,14 +156,14 @@ async def start_global_chat(interaction: discord.Interaction):
     )
     
     for channel_id in await get_registered_channels():
-        target_channel = bot.get_channel(channel_id)
+        target_channel = main.get_channel(channel_id)
         if target_channel and target_channel.permissions_for(target_channel.guild.me).send_messages:
             await target_channel.send(embed=embed)
 
     registered_channels = await get_registered_channels()
-    await bot.change_presence(activity=discord.Game(name=f"{len(registered_channels)} チャンネルに接続中"))
+    await main.change_presence(activity=discord.Game(name=f"{len(registered_channels)} チャンネルに接続中"))
 
-@bot.tree.command(name='stop', description='グローバルチャットを停止します。')
+@main.tree.command(name='stop', description='グローバルチャットを停止します。')
 async def stop_global_chat(interaction: discord.Interaction):
     channel_id = interaction.channel.id
     await unregister_channel(channel_id)  # データベースから削除
@@ -179,13 +181,13 @@ async def stop_global_chat(interaction: discord.Interaction):
 
     # 全サーバーに停止通知を送信
     for channel_id in registered_channels:
-        target_channel = bot.get_channel(channel_id)
+        target_channel = main.get_channel(channel_id)
         if target_channel and target_channel.permissions_for(target_channel.guild.me).send_messages:
             await target_channel.send(embed=embed)
 
-@bot.event
+@main.event
 async def on_message(message):
-    if message.author == bot.user:
+    if message.author == main.user:
         return
 
     if isinstance(message.channel, discord.DMChannel):
@@ -210,14 +212,14 @@ async def on_message(message):
             embed.set_image(url=message.attachments[0].url)
 
         for channel_id in registered_channels:
-            target_channel = bot.get_channel(channel_id)
+            target_channel = main.get_channel(channel_id)
             if target_channel and target_channel.guild.id != message.guild.id and target_channel.permissions_for(target_channel.guild.me).send_messages:
                 await target_channel.send(embed=embed)
 
         await message.add_reaction('✅')
 
 # プログラム終了時にデータベースを閉じる
-atexit.register(lambda: bot.loop.run_until_complete(close_db()))
+atexit.register(lambda: main.loop.run_until_complete(close_db()))
 
 # Botのトークンをここに入れてください
-bot.run(os.environ['DISCORD_BOT_TOKEN'])
+main.run(os.environ['DISCORD_BOT_TOKEN'])
